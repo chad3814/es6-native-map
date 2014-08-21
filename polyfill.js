@@ -31,6 +31,17 @@ Object.defineProperties(MapPoly.prototype, {
         enumerable: false,
         writable: true
     },
+    forEach: {
+        value: function (cb, context) {
+            var self = this;
+            return this._ht.forEach(function (key, value) {
+                return cb.call(context, value, key, self);
+            });
+        },
+        configurable: true,
+        enumerable: false,
+        writable: true
+    },
     get: {
         value: function (key) {
             return this._ht.get(key);

@@ -49,10 +49,9 @@ map.has('dwa');           // true
 map.delete('dwa');        // true
 map.size;                 // 3
 
-// no iterator support yet
-//map.forEach(function (value, key) {
-//  // { 'raz', 'one' }, { x, y }, { 'trzy', 'three' } iterated
-//});
+map.forEach(function (value, key) {
+  // { 'raz', 'one' }, { x, y }, { 'trzy', 'three' } iterated
+});
 
 // no iterator support yet
 //var iterator = map.values();
