@@ -60,7 +60,8 @@ Object.defineProperties(MapPoly.prototype, {
             return this._ht.size();
         },
         configurable: true,
-        enumerable: false,
-        writable: true
+        enumerable: false
     }
 });
+
+module.exports = MapPoly;
