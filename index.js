@@ -1,3 +1,1 @@
-'use strict';
-
-module.exports = require('./is-implemented')() ? Map : require('./polyfill');
+module.exports = require('hashtable/es6-map');
