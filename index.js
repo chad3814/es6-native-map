@@ -1,1 +1,1 @@
-module.exports = require('hashtable/es6-map');
+module.exports = require('./build/Release/native').NodeMap;
