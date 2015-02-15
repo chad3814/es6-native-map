@@ -4,7 +4,7 @@
 #include <string>
 #include <iostream>
 #include <node.h>
-#include "hashtable.h"
+#include "map.h"
 
 class PairNodeIterator : public node::ObjectWrap {
 public:
