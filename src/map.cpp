@@ -29,11 +29,11 @@ NodeMap::NodeMap() {}
 
 NodeMap::~NodeMap() {
     for(MapType::const_iterator itr = this->map.begin(); itr != this->map.end(); ) {
-        Persistent<Value> key = Persistent<Value>::Persistent(itr->first);
+        Persistent<Value> key = Persistent<Value>(itr->first);
         key.Dispose();
         key.Clear();
 
-        Persistent<Value> value = Persistent<Value>::Persistent(itr->second);
+        Persistent<Value> value = Persistent<Value>(itr->second);
         value.Dispose();
         value.Clear();
 
@@ -100,7 +100,7 @@ Handle<Value> NodeMap::Get(const Arguments& args) {
         return scope.Close(Undefined()); //return undefined
     }
 
-    Persistent<Value> value = Persistent<Value>::Persistent(itr->second);
+    Persistent<Value> value = Persistent<Value>(itr->second);
 
     return scope.Close(value);
 }
@@ -138,11 +138,11 @@ Handle<Value> NodeMap::Set(const Arguments& args) {
 
     //overwriting an existing value
     if(itr != obj->map.end()) {
-        Persistent<Value> oldKey = Persistent<Value>::Persistent(itr->first);
+        Persistent<Value> oldKey = Persistent<Value>(itr->first);
         oldKey.Dispose();
         oldKey.Clear();
 
-        Persistent<Value> oldValue = Persistent<Value>::Persistent(itr->second);
+        Persistent<Value> oldValue = Persistent<Value>(itr->second);
         oldValue.Dispose(); //release the handle to the GC
         oldValue.Clear();
 
@@ -205,11 +205,11 @@ Handle<Value> NodeMap::Delete(const Arguments& args) {
         return scope.Close(Boolean::New(false)); //do nothing and return false
     }
 
-    Persistent<Value> key = Persistent<Value>::Persistent(itr->first);
+    Persistent<Value> key = Persistent<Value>(itr->first);
     key.Dispose();
     key.Clear();
 
-    Persistent<Value> value = Persistent<Value>::Persistent(itr->second);
+    Persistent<Value> value = Persistent<Value>(itr->second);
     value.Dispose();
     value.Clear();
 
@@ -224,11 +224,11 @@ Handle<Value> NodeMap::Clear(const Arguments& args) {
     NodeMap *obj = ObjectWrap::Unwrap<NodeMap>(args.This());
 
     for(MapType::const_iterator itr = obj->map.begin(); itr != obj->map.end(); ) {
-        Persistent<Value> key = Persistent<Value>::Persistent(itr->first);
+        Persistent<Value> key = Persistent<Value>(itr->first);
         key.Dispose();
         key.Clear();
 
-        Persistent<Value> value = Persistent<Value>::Persistent(itr->second);
+        Persistent<Value> value = Persistent<Value>(itr->second);
         value.Dispose();
         value.Clear();
 
