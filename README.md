@@ -1,7 +1,9 @@
 # es6-native-map
 ==============
 
-Sometimes you need to store so much data in memory that V8 can get a bit clogged up. This Node.js module provides an interface to a native hashmap data structure that exists outside of V8's memory constraints, with the ES6 Map api. This is the same code as in chad3814/node-hashtable, but under the better name.
+Sometimes you need to store so much data in memory that V8 can get a bit clogged up. This Node.js module provides an interface to a native hashmap data structure that exists outside of V8's memory constraints, with the ES6 Map api.
+
+As of 2.0.0, es6-native-map requires node.js 0.12 or later. If you are running node.js 0.10, stick with the 1.x.x line.
 
 To install, simply:
 
