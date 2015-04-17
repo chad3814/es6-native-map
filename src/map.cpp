@@ -185,7 +185,7 @@ NAN_METHOD(NodeMap::Values) {
 NAN_METHOD(NodeMap::Delete) {
     NanScope();
 
-    if (args.Length() < 1) {
+    if (args.Length() < 1 || args[0]->IsUndefined() || args[0]->IsNull()) {
         NanThrowTypeError("Wrong arguments");
         NanReturnValue(NanFalse());
     }
