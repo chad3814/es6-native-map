@@ -2,7 +2,7 @@
     "name": "es6-native-map",
     "description": "es6 compatible map using native store",
     "keywords": ["map", "native map", "hashtable", "es6", "es6 map"],
-    "version": "2.0.1",
+    "version": "2.0.2",
     "homepage": "https://github.com/chad3814/es6-native-map",
     "maintainers": [{
         "name": "Chad Walker",

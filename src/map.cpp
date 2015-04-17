@@ -86,7 +86,7 @@ NAN_METHOD(NodeMap::Constructor) {
 NAN_METHOD(NodeMap::Get) {
     NanScope();
 
-    if (args.Length() < 1) {
+    if (args.Length() < 1 || args[0]->IsUndefined() || args[0]->IsNull()) {
         NanThrowTypeError("Wrong arguments");
         NanReturnUndefined();
     }
@@ -106,7 +106,7 @@ NAN_METHOD(NodeMap::Get) {
 NAN_METHOD(NodeMap::Has) {
     NanScope();
 
-    if (args.Length() < 1) {
+    if (args.Length() < 1 || args[0]->IsUndefined() || args[0]->IsNull()) {
         NanThrowTypeError("Wrong arguments");
         NanReturnValue(NanFalse());
     }
