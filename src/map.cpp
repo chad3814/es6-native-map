@@ -126,7 +126,7 @@ NAN_METHOD(NodeMap::Has) {
 NAN_METHOD(NodeMap::Set) {
     NanScope();
 
-    if (args.Length() < 2) {
+    if (args.Length() < 2 || args[0]->IsUndefined() || args[0]->IsNull()) {
         NanThrowTypeError("Wrong arguments");
         NanReturnUndefined();
     }
