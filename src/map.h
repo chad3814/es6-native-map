@@ -14,7 +14,7 @@
 #include <nan.h>
 #include "v8_value_hasher.h"
 
-typedef unordered_map<V8PersistentValueWrapper *,V8PersistentValueWrapper *, v8_value_hash, v8_value_equal_to> MapType;
+typedef unordered_map<v8::UniquePersistent<v8::Value> *, v8::UniquePersistent<v8::Value> *, v8_value_hash, v8_value_equal_to> MapType;
 
 class NodeMap : public node::ObjectWrap {
 public:

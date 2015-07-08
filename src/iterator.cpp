@@ -92,7 +92,7 @@ NAN_GETTER(PairNodeIterator::GetKey) {
         NanReturnUndefined();
     }
 
-    NanReturnValue(obj->iter->first->Extract());
+    NanReturnValue(Local<Value>::New(Isolate::GetCurrent(), *obj->iter->first));
 }
 
 // iterator.value : value
@@ -105,7 +105,7 @@ NAN_GETTER(PairNodeIterator::GetValue) {
         NanReturnUndefined();
     }
 
-    NanReturnValue(obj->iter->second->Extract());
+    NanReturnValue(Local<Value>::New(Isolate::GetCurrent(), *obj->iter->second));
 }
 
 // iterator.next() : undefined

@@ -34,6 +34,9 @@ NodeMap::NodeMap() {}
 
 NodeMap::~NodeMap() {
     for(MapType::const_iterator itr = this->map.begin(); itr != this->map.end(); ) {
+        itr->first->Reset();
+        itr->second->Reset();
+
         delete itr->first;
         delete itr->second;
 
@@ -92,15 +95,19 @@ NAN_METHOD(NodeMap::Get) {
     }
 
     NodeMap *obj = ObjectWrap::Unwrap<NodeMap>(args.This());
-    V8PersistentValueWrapper *persistent = new V8PersistentValueWrapper(Isolate::GetCurrent(), args[0]);
+    Isolate* isolate = Isolate::GetCurrent();
+    UniquePersistent<Value> *persistent = new UniquePersistent<Value>(isolate, args[0]);
 
     MapType::const_iterator itr = obj->map.find(persistent);
+    persistent->Reset();
+    delete persistent;
 
     if(itr == obj->map.end()) {
         NanReturnUndefined();
     }
 
-    NanReturnValue(itr->second->Extract());
+    Local<Value> ret = Local<Value>::New(isolate, *itr->second);
+    NanReturnValue(ret);
 }
 
 NAN_METHOD(NodeMap::Has) {
@@ -112,9 +119,12 @@ NAN_METHOD(NodeMap::Has) {
     }
 
     NodeMap *obj = ObjectWrap::Unwrap<NodeMap>(args.This());
-    V8PersistentValueWrapper *persistent = new V8PersistentValueWrapper(Isolate::GetCurrent(), args[0]);
+    Isolate* isolate = Isolate::GetCurrent();
+    UniquePersistent<Value> *persistent = new UniquePersistent<Value>(isolate, args[0]);
 
     MapType::const_iterator itr = obj->map.find(persistent);
+    persistent->Reset();
+    delete persistent;
 
     if(itr == obj->map.end()) {
         NanReturnValue(NanFalse());
@@ -132,20 +142,24 @@ NAN_METHOD(NodeMap::Set) {
     }
 
     NodeMap *obj = ObjectWrap::Unwrap<NodeMap>(args.This());
-    V8PersistentValueWrapper *pkey = new V8PersistentValueWrapper(Isolate::GetCurrent(), args[0]);
-    V8PersistentValueWrapper *pvalue = new V8PersistentValueWrapper(Isolate::GetCurrent(), args[1]);
+    Isolate* isolate = Isolate::GetCurrent();
+    UniquePersistent<Value> *pkey = new UniquePersistent<Value>(isolate, args[0]);
+    UniquePersistent<Value> *pvalue = new UniquePersistent<Value>(isolate, args[1]);
 
     MapType::const_iterator itr = obj->map.find(pkey);
 
     //overwriting an existing value
     if(itr != obj->map.end()) {
+        itr->first->Reset();
+        itr->second->Reset();
+
         delete itr->first;
         delete itr->second;
 
         obj->map.erase(itr);
     }
 
-    obj->map.insert(std::pair<V8PersistentValueWrapper *, V8PersistentValueWrapper *>(pkey, pvalue));
+    obj->map.insert(std::pair<UniquePersistent<Value> *, UniquePersistent<Value> *>(pkey, pvalue));
 
     //Return this
     NanReturnThis();
@@ -191,14 +205,20 @@ NAN_METHOD(NodeMap::Delete) {
     }
 
     NodeMap *obj = ObjectWrap::Unwrap<NodeMap>(args.This());
-    V8PersistentValueWrapper *persistent = new V8PersistentValueWrapper(Isolate::GetCurrent(), args[0]);
+    Isolate* isolate = Isolate::GetCurrent();
+    UniquePersistent<Value> *persistent = new UniquePersistent<Value>(isolate, args[0]);
 
     MapType::const_iterator itr = obj->map.find(persistent);
+    persistent->Reset();
+    delete persistent;
 
     if(itr == obj->map.end()) {
         //do nothing and return false
         NanReturnValue(NanFalse());
     }
+
+    itr->first->Reset();
+    itr->second->Reset();
 
     delete itr->first;
     delete itr->second;
@@ -214,6 +234,9 @@ NAN_METHOD(NodeMap::Clear) {
     NodeMap *obj = ObjectWrap::Unwrap<NodeMap>(args.This());
 
     for(MapType::const_iterator itr = obj->map.begin(); itr != obj->map.end(); ) {
+        itr->first->Reset();
+        itr->second->Reset();
+
         delete itr->first;
         delete itr->second;
 
@@ -236,6 +259,7 @@ NAN_METHOD(NodeMap::ForEach) {
     NanScope();
 
     NodeMap *obj = ObjectWrap::Unwrap<NodeMap>(args.This());
+    Isolate* isolate = Isolate::GetCurrent();
 
     if (args.Length() < 1 || !args[0]->IsFunction()) {
         NanThrowTypeError("Wrong arguments");
@@ -257,8 +281,8 @@ NAN_METHOD(NodeMap::ForEach) {
     MapType::const_iterator itr = obj->map.begin();
 
     while (itr != obj->map.end()) {
-        argv[0] = itr->second->Extract();
-        argv[1] = itr->first->Extract();
+        argv[0] = Local<Value>::New(isolate, *itr->second);
+        argv[1] = Local<Value>::New(isolate, *itr->first);
         cb->Call(ctx, argc, argv);
         itr++;
     }
