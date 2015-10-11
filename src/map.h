@@ -14,11 +14,11 @@
 #include <nan.h>
 #include "v8_value_hasher.h"
 
-typedef unordered_map<v8::UniquePersistent<v8::Value> *, v8::UniquePersistent<v8::Value> *, v8_value_hash, v8_value_equal_to> MapType;
+typedef unordered_map<CopyablePersistent *, CopyablePersistent *, v8_value_hash> MapType;
 
-class NodeMap : public node::ObjectWrap {
+class NodeMap : public Nan::ObjectWrap {
 public:
-    static void init(v8::Handle<v8::Object> exports);
+    static void init(v8::Local<v8::Object> target);
 
 private:
     NodeMap();

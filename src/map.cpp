@@ -4,30 +4,27 @@
 
 using namespace v8;
 
-#define PROTO(proto, js_name, cpp_name) \
-    (proto)->Set(NanNew<String>(#js_name), \
-                 NanNew<FunctionTemplate>(cpp_name)->GetFunction())
+void NodeMap::init(Local<Object> target) {
+    Nan::HandleScope scope;
 
+    Local<FunctionTemplate> constructor = Nan::New<FunctionTemplate>(Constructor);
 
-void NodeMap::init(Handle<Object> exports) {
-    Local<FunctionTemplate> constructor = NanNew<FunctionTemplate>(Constructor);
-    constructor->SetClassName(NanNew<String>("NodeMap"));
+    constructor->SetClassName(Nan::New("NodeMap").ToLocalChecked());
     constructor->InstanceTemplate()->SetInternalFieldCount(1);
 
-    Local<ObjectTemplate> prototype = constructor->PrototypeTemplate();
-    PROTO(prototype, set, Set);
-    PROTO(prototype, get, Get);
-    PROTO(prototype, has, Has);
-    PROTO(prototype, entries, Entries);
-    PROTO(prototype, keys, Keys);
-    PROTO(prototype, values, Values);
-    PROTO(prototype, delete, Delete);
-    PROTO(prototype, clear, Clear);
-    PROTO(prototype, forEach, ForEach);
+    Nan::SetPrototypeMethod(constructor, "set", Set);
+    Nan::SetPrototypeMethod(constructor, "get", Get);
+    Nan::SetPrototypeMethod(constructor, "has", Has);
+    Nan::SetPrototypeMethod(constructor, "entries", Entries);
+    Nan::SetPrototypeMethod(constructor, "keys", Keys);
+    Nan::SetPrototypeMethod(constructor, "values", Values);
+    Nan::SetPrototypeMethod(constructor, "delete", Delete);
+    Nan::SetPrototypeMethod(constructor, "clear", Clear);
+    Nan::SetPrototypeMethod(constructor, "forEach", ForEach);
 
-    exports->Set(NanNew<String>("NodeMap"), constructor->GetFunction());
+    target->Set(Nan::New("NodeMap").ToLocalChecked(), constructor->GetFunction());
 
-    PairNodeIterator::init();
+    PairNodeIterator::init(target);
 }
 
 NodeMap::NodeMap() {}
@@ -45,106 +42,105 @@ NodeMap::~NodeMap() {
 }
 
 NAN_METHOD(NodeMap::Constructor) {
-    NanScope();
+    Nan::HandleScope scope;
     NodeMap *obj = new NodeMap();
-    Local<Function> setter;
 
-    Local<String> set = NanNew<String>("set");
-    Local<String> next = NanNew<String>("next");
-    Local<String> done = NanNew<String>("done");
-    Local<String> key = NanNew<String>("key");
-    Local<String> value = NanNew<String>("value");
+    Local<String> set = Nan::New("set").ToLocalChecked();
+    Local<String> next = Nan::New("next").ToLocalChecked();
+    Local<String> done = Nan::New("done").ToLocalChecked();
+    Local<String> key = Nan::New("key").ToLocalChecked();
+    Local<String> value = Nan::New("value").ToLocalChecked();
     Local<Object> iter;
-    Local<Function> next_func;
     Local<Value> func_args[2];
-    Local<Value> empty_args[0];
 
-    obj->Wrap(args.This());
-    args.This()->SetAccessor(NanNew<String>("size"), Size);
+    obj->Wrap(info.This());
+    Nan::SetAccessor(info.This(), Nan::New("size").ToLocalChecked(), Size);
+    info.GetReturnValue().Set(info.This());
 
-    if(args.Length() > 0) {
-        if (!args.This()->Has(set) || !args.This()->Get(set)->IsFunction()) {
-            NanThrowTypeError("Invalid set method");
-            NanReturnThis();
+    if(info.Length() > 0) {
+        if (!info.This()->Has(set) || !Nan::Get(info.This(), set).ToLocalChecked()->IsFunction()) {
+            Nan::ThrowTypeError("Invalid set method");
+            return;
+
         }
-        setter = Local<Function>::Cast(args.This()->Get(set));
-        if (args[0]->IsObject()) {
-            iter = Local<Object>::Cast(args[0]);
+        Nan::Callback setter(Nan::Get(info.This(), set).ToLocalChecked().As<Function>());
+        if (info[0]->IsObject()) {
+            iter = Nan::To<Object>(info[0]).ToLocalChecked();
             if (iter->Has(next) && iter->Get(next)->IsFunction() && iter->Has(key) && iter->Has(value) && iter->Has(done)) {
-                next_func = Local<Function>::Cast(iter->Get(next));
+                Nan::Callback next_func(Nan::Get(iter, next).ToLocalChecked().As<Function>());
                 // a value iterator
-                while(!iter->Get(done)->BooleanValue()) {
-                    func_args[0] = iter->Get(key);
-                    func_args[1] = iter->Get(value);
-                    setter->Call(args.This(), 2, func_args);
-                    next_func->Call(iter, 0, empty_args);
+                while(!Nan::Get(iter, done).ToLocalChecked()->BooleanValue()) {
+                    func_args[0] = Nan::Get(iter, key).ToLocalChecked();
+                    func_args[1] = Nan::Get(iter, value).ToLocalChecked();
+                    setter.Call(info.This(), 2, func_args);
+                    next_func.Call(iter, 0, 0);
                 }
             }
         }
     }
-
-    NanReturnThis();
+    return;
 }
 
 NAN_METHOD(NodeMap::Get) {
-    NanScope();
+    Nan::HandleScope scope;
 
-    if (args.Length() < 1 || args[0]->IsUndefined() || args[0]->IsNull()) {
-        NanThrowTypeError("Wrong arguments");
-        NanReturnUndefined();
+    if (info.Length() < 1 || info[0]->IsUndefined() || info[0]->IsNull()) {
+        Nan::ThrowTypeError("Wrong arguments");
+        return;
     }
 
-    NodeMap *obj = ObjectWrap::Unwrap<NodeMap>(args.This());
-    Isolate* isolate = Isolate::GetCurrent();
-    UniquePersistent<Value> *persistent = new UniquePersistent<Value>(isolate, args[0]);
+    NodeMap *obj = Nan::ObjectWrap::Unwrap<NodeMap>(info.This());
+    CopyablePersistent *persistent = new Nan::Persistent<Value, Nan::CopyablePersistentTraits<v8::Value> >(info[0]);
 
     MapType::const_iterator itr = obj->map.find(persistent);
     persistent->Reset();
     delete persistent;
 
     if(itr == obj->map.end()) {
-        NanReturnUndefined();
+        info.GetReturnValue().Set(Nan::Undefined());
+        return;
     }
 
-    Local<Value> ret = Local<Value>::New(isolate, *itr->second);
-    NanReturnValue(ret);
+    Local<Value> ret = Local<Value>::New(Isolate::GetCurrent(), *itr->second);
+    info.GetReturnValue().Set(ret);
+    return;
 }
 
 NAN_METHOD(NodeMap::Has) {
-    NanScope();
+    Nan::HandleScope scope;
 
-    if (args.Length() < 1 || args[0]->IsUndefined() || args[0]->IsNull()) {
-        NanThrowTypeError("Wrong arguments");
-        NanReturnValue(NanFalse());
+    if (info.Length() < 1 || info[0]->IsUndefined() || info[0]->IsNull()) {
+        Nan::ThrowTypeError("Wrong arguments");
+        return;
     }
 
-    NodeMap *obj = ObjectWrap::Unwrap<NodeMap>(args.This());
-    Isolate* isolate = Isolate::GetCurrent();
-    UniquePersistent<Value> *persistent = new UniquePersistent<Value>(isolate, args[0]);
+    NodeMap *obj = Nan::ObjectWrap::Unwrap<NodeMap>(info.This());
+    CopyablePersistent *persistent = new Nan::Persistent<Value, Nan::CopyablePersistentTraits<v8::Value> >(info[0]);
 
     MapType::const_iterator itr = obj->map.find(persistent);
     persistent->Reset();
     delete persistent;
 
     if(itr == obj->map.end()) {
-        NanReturnValue(NanFalse());
+        info.GetReturnValue().Set(Nan::False());
+        return;
     }
 
-    NanReturnValue(NanTrue());
+    info.GetReturnValue().Set(Nan::True());
+    return;
 }
 
 NAN_METHOD(NodeMap::Set) {
-    NanScope();
+    Nan::HandleScope scope;
 
-    if (args.Length() < 2 || args[0]->IsUndefined() || args[0]->IsNull()) {
-        NanThrowTypeError("Wrong arguments");
-        NanReturnUndefined();
+    if (info.Length() < 2 || info[0]->IsUndefined() || info[0]->IsNull()) {
+        Nan::ThrowTypeError("Wrong arguments");
+        return;
     }
 
-    NodeMap *obj = ObjectWrap::Unwrap<NodeMap>(args.This());
-    Isolate* isolate = Isolate::GetCurrent();
-    UniquePersistent<Value> *pkey = new UniquePersistent<Value>(isolate, args[0]);
-    UniquePersistent<Value> *pvalue = new UniquePersistent<Value>(isolate, args[1]);
+    NodeMap *obj = Nan::ObjectWrap::Unwrap<NodeMap>(info.This());
+    CopyablePersistent *pkey = new CopyablePersistent(info[0]);
+    CopyablePersistent *pvalue = new CopyablePersistent(info[1]);
 
     MapType::const_iterator itr = obj->map.find(pkey);
 
@@ -159,54 +155,57 @@ NAN_METHOD(NodeMap::Set) {
         obj->map.erase(itr);
     }
 
-    obj->map.insert(std::pair<UniquePersistent<Value> *, UniquePersistent<Value> *>(pkey, pvalue));
+    obj->map.insert(std::pair<CopyablePersistent *, CopyablePersistent *>(pkey, pvalue));
 
     //Return this
-    NanReturnThis();
+    info.GetReturnValue().Set(info.This());
+    return;
 }
 
 NAN_METHOD(NodeMap::Entries) {
-    NanScope();
+    Nan::HandleScope scope;
 
-    NodeMap *obj = ObjectWrap::Unwrap<NodeMap>(args.This());
+    NodeMap *obj = Nan::ObjectWrap::Unwrap<NodeMap>(info.This());
 
     Local<Object> iter = PairNodeIterator::New(PairNodeIterator::KEY_TYPE | PairNodeIterator::VALUE_TYPE, obj->map.begin(), obj->map.end());
 
-    NanReturnValue(iter);
+    info.GetReturnValue().Set(iter);
+    return;
 }
 
 NAN_METHOD(NodeMap::Keys) {
-    NanScope();
+    Nan::HandleScope scope;
 
-    NodeMap *obj = ObjectWrap::Unwrap<NodeMap>(args.This());
+    NodeMap *obj = Nan::ObjectWrap::Unwrap<NodeMap>(info.This());
 
     Local<Object> iter = PairNodeIterator::New(PairNodeIterator::KEY_TYPE, obj->map.begin(), obj->map.end());
 
-    NanReturnValue(iter);
+    info.GetReturnValue().Set(iter);
+    return;
 }
 
 NAN_METHOD(NodeMap::Values) {
-    NanScope();
+    Nan::HandleScope scope;
 
-    NodeMap *obj = ObjectWrap::Unwrap<NodeMap>(args.This());
+    NodeMap *obj = Nan::ObjectWrap::Unwrap<NodeMap>(info.This());
 
     Local<Object> iter = PairNodeIterator::New(PairNodeIterator::VALUE_TYPE, obj->map.begin(), obj->map.end());
 
-    NanReturnValue(iter);
+    info.GetReturnValue().Set(iter);
+    return;
 }
 
 
 NAN_METHOD(NodeMap::Delete) {
-    NanScope();
+    Nan::HandleScope scope;
 
-    if (args.Length() < 1 || args[0]->IsUndefined() || args[0]->IsNull()) {
-        NanThrowTypeError("Wrong arguments");
-        NanReturnValue(NanFalse());
+    if (info.Length() < 1 || info[0]->IsUndefined() || info[0]->IsNull()) {
+        Nan::ThrowTypeError("Wrong arguments");
+        return;
     }
 
-    NodeMap *obj = ObjectWrap::Unwrap<NodeMap>(args.This());
-    Isolate* isolate = Isolate::GetCurrent();
-    UniquePersistent<Value> *persistent = new UniquePersistent<Value>(isolate, args[0]);
+    NodeMap *obj = Nan::ObjectWrap::Unwrap<NodeMap>(info.This());
+    CopyablePersistent *persistent = new CopyablePersistent(info[0]);
 
     MapType::const_iterator itr = obj->map.find(persistent);
     persistent->Reset();
@@ -214,7 +213,8 @@ NAN_METHOD(NodeMap::Delete) {
 
     if(itr == obj->map.end()) {
         //do nothing and return false
-        NanReturnValue(NanFalse());
+        info.GetReturnValue().Set(Nan::False());
+        return;
     }
 
     itr->first->Reset();
@@ -225,13 +225,14 @@ NAN_METHOD(NodeMap::Delete) {
 
     obj->map.erase(itr);
 
-    NanReturnValue(NanTrue());
+    info.GetReturnValue().Set(Nan::True());
+    return;
 }
 
 NAN_METHOD(NodeMap::Clear) {
-    NanScope();
+    Nan::HandleScope scope;
 
-    NodeMap *obj = ObjectWrap::Unwrap<NodeMap>(args.This());
+    NodeMap *obj = Nan::ObjectWrap::Unwrap<NodeMap>(info.This());
 
     for(MapType::const_iterator itr = obj->map.begin(); itr != obj->map.end(); ) {
         itr->first->Reset();
@@ -243,49 +244,59 @@ NAN_METHOD(NodeMap::Clear) {
         itr = obj->map.erase(itr);
     }
 
-    NanReturnUndefined();
+    info.GetReturnValue().Set(Nan::Undefined());
+    return;
 }
 
 NAN_GETTER(NodeMap::Size) {
-    NanScope();
-
-    NodeMap *obj = ObjectWrap::Unwrap<NodeMap>(args.This());
+    NodeMap *obj = Nan::ObjectWrap::Unwrap<NodeMap>(info.This());
     uint32_t size = obj->map.size();
 
-    NanReturnValue(NanNew<Integer>(size));
+    info.GetReturnValue().Set(Nan::New<Integer>(size));
+    return;
 }
 
 NAN_METHOD(NodeMap::ForEach) {
-    NanScope();
+    Nan::HandleScope scope;
 
-    NodeMap *obj = ObjectWrap::Unwrap<NodeMap>(args.This());
-    Isolate* isolate = Isolate::GetCurrent();
+    NodeMap *obj = Nan::ObjectWrap::Unwrap<NodeMap>(info.This());
 
-    if (args.Length() < 1 || !args[0]->IsFunction()) {
-        NanThrowTypeError("Wrong arguments");
-        NanReturnUndefined();
+    if (info.Length() < 1 || !info[0]->IsFunction()) {
+        Nan::ThrowTypeError("Wrong arguments");
+        return;
     }
-    Local<Function> cb = Local<Function>::Cast(args[0]);
+    Local<Function> cb = info[0].As<v8::Function>();
 
     Local<Object> ctx;
-    if (args.Length() > 1 && args[1]->IsObject()) {
-        ctx = args[1]->ToObject();
+    if (info.Length() > 1 && info[1]->IsObject()) {
+        ctx = info[1]->ToObject();
     } else {
-        ctx = NanGetCurrentContext()->Global();
+        ctx = Nan::GetCurrentContext()->Global();
     }
 
     const unsigned argc = 3;
     Local<Value> argv[argc];
-    argv[2] = args.This();
+    argv[2] = info.This();
 
     MapType::const_iterator itr = obj->map.begin();
 
     while (itr != obj->map.end()) {
-        argv[0] = Local<Value>::New(isolate, *itr->second);
-        argv[1] = Local<Value>::New(isolate, *itr->first);
+        argv[0] = Local<Value>::New(Isolate::GetCurrent(), *itr->second);
+        argv[1] = Local<Value>::New(Isolate::GetCurrent(), *itr->first);
         cb->Call(ctx, argc, argv);
         itr++;
     }
 
-    NanReturnUndefined();
+    info.GetReturnValue().Set(Nan::Undefined());
+    return;
 }
+
+
+extern "C" void
+init (Local<Object> target) {
+    Nan::HandleScope scope;
+
+    NodeMap::init(target);
+}
+
+NODE_MODULE(map, init);

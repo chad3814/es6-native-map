@@ -7,15 +7,17 @@
 #include <nan.h>
 #include "map.h"
 
-class PairNodeIterator : public node::ObjectWrap {
+class PairNodeIterator : public Nan::ObjectWrap {
 public:
-    static void init();
+    static void init(v8::Local<v8::Object> target);
     static v8::Local<v8::Object> New(int type, MapType::const_iterator new_iter, MapType::const_iterator new_end);
 
     const static int KEY_TYPE = 1;
     const static int VALUE_TYPE = 1 << 1;
 
 private:
+    static Nan::Persistent<v8::FunctionTemplate> constructor;
+
     PairNodeIterator(MapType::const_iterator new_iter, MapType::const_iterator new_end);
     //~PairNodeIterator();
 
