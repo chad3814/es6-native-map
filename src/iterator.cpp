@@ -3,35 +3,60 @@
 
 using namespace v8;
 
-Nan::Persistent<FunctionTemplate> PairNodeIterator::constructor;
+Nan::Persistent<FunctionTemplate> PairNodeIterator::k_constructor;
+Nan::Persistent<FunctionTemplate> PairNodeIterator::v_constructor;
+Nan::Persistent<FunctionTemplate> PairNodeIterator::kv_constructor;
 
 void PairNodeIterator::init(Local<Object> target) {
-    Local<FunctionTemplate> tmplt = Nan::New<FunctionTemplate>();
-    constructor.Reset(tmplt);
-    tmplt->SetClassName(Nan::New("NodeIterator").ToLocalChecked());
-    tmplt->InstanceTemplate()->SetInternalFieldCount(1);
-    Nan::SetPrototypeMethod(tmplt, "next", Next);
-}
-
-Local<Object> PairNodeIterator::New(int type, MapType::const_iterator new_iter, MapType::const_iterator new_end) {
-    Local<FunctionTemplate> constr = Nan::New<FunctionTemplate>(constructor);
-    Local<Object> obj = constr->InstanceTemplate()->NewInstance();
-    PairNodeIterator *iter = new PairNodeIterator(new_iter, new_end);
-
-    iter->Wrap(obj);
-
     Local<String> key = Nan::New("key").ToLocalChecked();
     Local<String> value = Nan::New("value").ToLocalChecked();
     Local<String> done = Nan::New("done").ToLocalChecked();
+    Local<FunctionTemplate> k_tmplt = Nan::New<FunctionTemplate>();
+    Local<FunctionTemplate> v_tmplt = Nan::New<FunctionTemplate>();
+    Local<FunctionTemplate> kv_tmplt = Nan::New<FunctionTemplate>();
+
+    k_tmplt->SetClassName(Nan::New("NodeIterator").ToLocalChecked());
+    k_tmplt->InstanceTemplate()->SetInternalFieldCount(1);
+    k_constructor.Reset(k_tmplt);
+    Nan::SetAccessor(k_tmplt->InstanceTemplate(), key, GetKey);
+    Nan::SetAccessor(k_tmplt->InstanceTemplate(), done, GetDone);
+    Nan::SetPrototypeMethod(k_tmplt, "next", Next);
+
+    v_tmplt->SetClassName(Nan::New("NodeIterator").ToLocalChecked());
+    v_tmplt->InstanceTemplate()->SetInternalFieldCount(1);
+    v_constructor.Reset(v_tmplt);
+    Nan::SetAccessor(v_tmplt->InstanceTemplate(), value, GetValue);
+    Nan::SetAccessor(v_tmplt->InstanceTemplate(), done, GetDone);
+    Nan::SetPrototypeMethod(v_tmplt, "next", Next);
+
+    kv_tmplt->SetClassName(Nan::New("NodeIterator").ToLocalChecked());
+    kv_tmplt->InstanceTemplate()->SetInternalFieldCount(1);
+    kv_constructor.Reset(kv_tmplt);
+    Nan::SetAccessor(kv_tmplt->InstanceTemplate(), key, GetKey);
+    Nan::SetAccessor(kv_tmplt->InstanceTemplate(), value, GetValue);
+    Nan::SetAccessor(kv_tmplt->InstanceTemplate(), done, GetDone);
+    Nan::SetPrototypeMethod(kv_tmplt, "next", Next);
+
+}
+
+Local<Object> PairNodeIterator::New(int type, MapType::const_iterator new_iter, MapType::const_iterator new_end) {
+    Local<FunctionTemplate> constructor;
+    Local<Object> obj;
+    PairNodeIterator *iter = new PairNodeIterator(new_iter, new_end);
 
     if (PairNodeIterator::KEY_TYPE & type) {
-        Nan::SetAccessor(obj, key, GetKey);
-    }
-    if (PairNodeIterator::VALUE_TYPE & type) {
-        Nan::SetAccessor(obj, value, GetValue);
+        if (PairNodeIterator::VALUE_TYPE & type) {
+            constructor = Nan::New<FunctionTemplate>(kv_constructor);
+        } else {
+            constructor = Nan::New<FunctionTemplate>(k_constructor);
+        }
+    } else {
+        constructor = Nan::New<FunctionTemplate>(v_constructor);
     }
 
-    Nan::SetAccessor(obj, done, GetDone);
+    obj = constructor->InstanceTemplate()->NewInstance();
+
+    iter->Wrap(obj);
 
     return obj;
 }

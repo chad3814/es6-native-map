@@ -21,6 +21,7 @@ void NodeMap::init(Local<Object> target) {
     Nan::SetPrototypeMethod(constructor, "delete", Delete);
     Nan::SetPrototypeMethod(constructor, "clear", Clear);
     Nan::SetPrototypeMethod(constructor, "forEach", ForEach);
+    Nan::SetAccessor(constructor->InstanceTemplate(), Nan::New("size").ToLocalChecked(), Size);
 
     target->Set(Nan::New("NodeMap").ToLocalChecked(), constructor->GetFunction());
 
@@ -54,27 +55,28 @@ NAN_METHOD(NodeMap::Constructor) {
     Local<Value> func_args[2];
 
     obj->Wrap(info.This());
-    Nan::SetAccessor(info.This(), Nan::New("size").ToLocalChecked(), Size);
     info.GetReturnValue().Set(info.This());
 
-    if(info.Length() > 0) {
-        if (!info.This()->Has(set) || !Nan::Get(info.This(), set).ToLocalChecked()->IsFunction()) {
-            Nan::ThrowTypeError("Invalid set method");
-            return;
+    if(info.Length() == 0) {
+        return;
+    }
 
-        }
-        Nan::Callback setter(Nan::Get(info.This(), set).ToLocalChecked().As<Function>());
-        if (info[0]->IsObject()) {
-            iter = Nan::To<Object>(info[0]).ToLocalChecked();
-            if (iter->Has(next) && iter->Get(next)->IsFunction() && iter->Has(key) && iter->Has(value) && iter->Has(done)) {
-                Nan::Callback next_func(Nan::Get(iter, next).ToLocalChecked().As<Function>());
-                // a value iterator
-                while(!Nan::Get(iter, done).ToLocalChecked()->BooleanValue()) {
-                    func_args[0] = Nan::Get(iter, key).ToLocalChecked();
-                    func_args[1] = Nan::Get(iter, value).ToLocalChecked();
-                    setter.Call(info.This(), 2, func_args);
-                    next_func.Call(iter, 0, 0);
-                }
+    if (!info.This()->Has(set) || !Nan::Get(info.This(), set).ToLocalChecked()->IsFunction()) {
+        Nan::ThrowTypeError("Invalid set method");
+        return;
+
+    }
+    Nan::Callback setter(Nan::Get(info.This(), set).ToLocalChecked().As<Function>());
+    if (info[0]->IsObject()) {
+        iter = Nan::To<Object>(info[0]).ToLocalChecked();
+        if (iter->Has(next) && iter->Get(next)->IsFunction() && iter->Has(key) && iter->Has(value) && iter->Has(done)) {
+            Nan::Callback next_func(Nan::Get(iter, next).ToLocalChecked().As<Function>());
+            // a value iterator
+            while(!Nan::Get(iter, done).ToLocalChecked()->BooleanValue()) {
+                func_args[0] = Nan::Get(iter, key).ToLocalChecked();
+                func_args[1] = Nan::Get(iter, value).ToLocalChecked();
+                setter.Call(info.This(), 2, func_args);
+                next_func.Call(iter, 0, 0);
             }
         }
     }
