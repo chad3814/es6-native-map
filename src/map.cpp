@@ -34,7 +34,7 @@ NodeMap::NodeMap() {
 }
 
 NodeMap::~NodeMap() {
-    for(SetType::const_iterator itr = this->_set.begin(); itr != this->_set.end(); ) {
+    for(MapType::const_iterator itr = this->_set.begin(); itr != this->_set.end(); ) {
         itr = this->_set.erase(itr);
     }
 }
@@ -61,7 +61,7 @@ void NodeMap::StopIterator() {
     }
     // that was the last iterator running, so now go through the whole set
     // and actually delete anything marked for deletion
-    for(SetType::const_iterator itr = this->_set.begin(); itr != this->_set.end(); ) {
+    for(MapType::const_iterator itr = this->_set.begin(); itr != this->_set.end(); ) {
         if (itr->IsDeleted()) {
             itr = this->_set.erase(itr);
         } else {
@@ -74,11 +74,11 @@ void NodeMap::StopIterator() {
     this->_set.max_load_factor(this->_old_load_factor);
 }
 
-SetType::const_iterator NodeMap::GetBegin() {
+MapType::const_iterator NodeMap::GetBegin() {
     return this->_set.begin();
 }
 
-SetType::const_iterator NodeMap::GetEnd() {
+MapType::const_iterator NodeMap::GetEnd() {
     return this->_set.end();
 }
 
@@ -135,11 +135,11 @@ NAN_METHOD(NodeMap::Get) {
     }
 
     NodeMap *obj = Nan::ObjectWrap::Unwrap<NodeMap>(info.This());
-    VersionedPersistent persistent(obj->_version, info[0]);
+    VersionedPersistentPair persistent(obj->_version, info[0]);
 
     obj->StartIterator();
-    SetType::const_iterator itr = obj->_set.find(persistent);
-    SetType::const_iterator end = obj->_set.end();
+    MapType::const_iterator itr = obj->_set.find(persistent);
+    MapType::const_iterator end = obj->_set.end();
 
     while(itr != end && itr->IsDeleted()) {
         itr++;
@@ -166,11 +166,11 @@ NAN_METHOD(NodeMap::Has) {
     }
 
     NodeMap *obj = Nan::ObjectWrap::Unwrap<NodeMap>(info.This());
-    VersionedPersistent persistent(obj->_version, info[0]);
+    VersionedPersistentPair persistent(obj->_version, info[0]);
 
     obj->StartIterator();
-    SetType::const_iterator itr = obj->_set.find(persistent);
-    SetType::const_iterator end = obj->_set.end();
+    MapType::const_iterator itr = obj->_set.find(persistent);
+    MapType::const_iterator end = obj->_set.end();
 
     while(itr != end && itr->IsDeleted()) {
         itr++;
@@ -196,11 +196,11 @@ NAN_METHOD(NodeMap::Set) {
     }
 
     NodeMap *obj = Nan::ObjectWrap::Unwrap<NodeMap>(info.This());
-    VersionedPersistent *persistent = new VersionedPersistent(obj->_version, info[0], info[1]);
+    VersionedPersistentPair *persistent = new VersionedPersistentPair(obj->_version, info[0], info[1]);
 
     obj->StartIterator();
-    SetType::const_iterator itr = obj->_set.find(*persistent);
-    SetType::const_iterator end = obj->_set.end();
+    MapType::const_iterator itr = obj->_set.find(*persistent);
+    MapType::const_iterator end = obj->_set.end();
 
     while(itr != end && itr->IsDeleted()) {
         itr++;
@@ -261,11 +261,11 @@ NAN_METHOD(NodeMap::Delete) {
     }
 
     NodeMap *obj = Nan::ObjectWrap::Unwrap<NodeMap>(info.This());
-    VersionedPersistent persistent(obj->_version, info[0]);
+    VersionedPersistentPair persistent(obj->_version, info[0]);
 
     obj->StartIterator();
-    SetType::const_iterator itr = obj->_set.find(persistent);
-    SetType::const_iterator end = obj->_set.end();
+    MapType::const_iterator itr = obj->_set.find(persistent);
+    MapType::const_iterator end = obj->_set.end();
 
     while(itr != end && itr->IsDeleted()) {
         itr++;
@@ -291,7 +291,7 @@ NAN_METHOD(NodeMap::Clear) {
     NodeMap *obj = Nan::ObjectWrap::Unwrap<NodeMap>(info.This());
 
     obj->StartIterator();
-    for(SetType::const_iterator itr = obj->_set.begin(); itr != obj->_set.end(); ) {
+    for(MapType::const_iterator itr = obj->_set.begin(); itr != obj->_set.end(); ) {
         itr->Delete();
     }
     obj->StopIterator();
@@ -309,8 +309,8 @@ NAN_GETTER(NodeMap::Size) {
         return;
     }
 
-    SetType::const_iterator itr = obj->_set.begin();
-    SetType::const_iterator end = obj->_set.end();
+    MapType::const_iterator itr = obj->_set.begin();
+    MapType::const_iterator end = obj->_set.end();
     for (; itr != end; itr++) {
         if (itr->IsValid(obj->_version)) {
             size += 1;
@@ -344,8 +344,8 @@ NAN_METHOD(NodeMap::ForEach) {
     argv[2] = info.This();
 
     uint32_t version = obj->StartIterator();
-    SetType::const_iterator itr = obj->_set.begin();
-    SetType::const_iterator end = obj->_set.end();
+    MapType::const_iterator itr = obj->_set.begin();
+    MapType::const_iterator end = obj->_set.end();
 
     while (itr != end) {
         if (itr->IsValid(version)) {

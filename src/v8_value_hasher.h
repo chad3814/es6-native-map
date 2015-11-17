@@ -13,18 +13,18 @@
 #endif
 #include <nan.h>
 
-class VersionedPersistent {
+class VersionedPersistentPair {
 public:
-    VersionedPersistent(uint32_t version, v8::Local<v8::Value> key) : _version(version), _is_deleted(false) {
+    VersionedPersistentPair(uint32_t version, v8::Local<v8::Value> key) : _version(version), _is_deleted(false) {
         _persistent_key.Reset(key);
     }
 
-VersionedPersistent(uint32_t version, v8::Local<v8::Value> key, v8::Local<v8::Value> value) : _version(version), _is_deleted(false) {
+    VersionedPersistentPair(uint32_t version, v8::Local<v8::Value> key, v8::Local<v8::Value> value) : _version(version), _is_deleted(false) {
         _persistent_key.Reset(key);
         _persistent_value.Reset(value);
     }
 
-    VersionedPersistent(const VersionedPersistent &copy) {
+    VersionedPersistentPair(const VersionedPersistentPair &copy) {
         Nan::HandleScope scope;
         _is_deleted = copy._is_deleted;
         _version = copy._version;
@@ -32,7 +32,7 @@ VersionedPersistent(uint32_t version, v8::Local<v8::Value> key, v8::Local<v8::Va
         _persistent_value.Reset(copy.GetLocalValue());
     }
 
-    ~VersionedPersistent() {
+    ~VersionedPersistentPair() {
         this->Delete();
     }
 
@@ -72,7 +72,7 @@ private:
 
 struct v8_value_hash
 {
-    size_t operator()(VersionedPersistent k) const {
+    size_t operator()(VersionedPersistentPair k) const {
         Nan::HandleScope scope;
         v8::Local<v8::Value> key = k.GetLocalKey();
 
@@ -86,7 +86,7 @@ struct v8_value_hash
 
 struct v8_value_equal_to
 {
-    bool operator()(VersionedPersistent pa, VersionedPersistent pb) const {
+    bool operator()(VersionedPersistentPair pa, VersionedPersistentPair pb) const {
         Nan::HandleScope scope;
 
         if (pa.IsDeleted() || pb.IsDeleted()) {

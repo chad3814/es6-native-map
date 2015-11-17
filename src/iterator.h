@@ -24,8 +24,8 @@ private:
     ~PairNodeIterator();
 
     uint32_t _version;
-    SetType::const_iterator _iter;
-    SetType::const_iterator _end;
+    MapType::const_iterator _iter;
+    MapType::const_iterator _end;
     NodeMap *_map_obj;
 
     // iterator.done : boolean

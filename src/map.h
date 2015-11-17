@@ -14,7 +14,7 @@
 #include <nan.h>
 #include "v8_value_hasher.h"
 
-typedef unordered_set<VersionedPersistent, v8_value_hash, v8_value_equal_to> SetType;
+typedef unordered_set<VersionedPersistentPair, v8_value_hash, v8_value_equal_to> MapType;
 
 class NodeMap : public Nan::ObjectWrap {
 public:
@@ -22,14 +22,14 @@ public:
 
     uint32_t StartIterator();
     void StopIterator();
-    SetType::const_iterator GetBegin();
-    SetType::const_iterator GetEnd();
+    MapType::const_iterator GetBegin();
+    MapType::const_iterator GetEnd();
 
 private:
     NodeMap();
     ~NodeMap();
 
-    SetType _set;
+    MapType _set;
     // each time an iterator starts, the _version gets incremented
     // it is used so that items added after an iterator starts are
     // not visited in the iterator
