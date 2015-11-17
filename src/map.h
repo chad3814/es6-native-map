@@ -4,27 +4,45 @@
 #include <string>
 #include <iostream>
 #ifdef __APPLE__
-#include <tr1/unordered_map>
-#define unordered_map std::tr1::unordered_map
+#include <tr1/unordered_set>
+#define unordered_set std::tr1::unordered_set
 #else
-#include <unordered_map>
-#define unordered_map std::unordered_map
+#include <unordered_set>
+#define unordered_set std::unordered_set
 #endif
 #include <node.h>
 #include <nan.h>
 #include "v8_value_hasher.h"
 
-typedef unordered_map<CopyablePersistent *, CopyablePersistent *, v8_value_hash, v8_value_equal_to> MapType;
+typedef unordered_set<VersionedPersistent, v8_value_hash, v8_value_equal_to> SetType;
 
 class NodeMap : public Nan::ObjectWrap {
 public:
     static void init(v8::Local<v8::Object> target);
 
+    uint32_t StartIterator();
+    void StopIterator();
+    SetType::const_iterator GetBegin();
+    SetType::const_iterator GetEnd();
+
 private:
     NodeMap();
     ~NodeMap();
 
-    MapType map;
+    SetType _set;
+    // each time an iterator starts, the _version gets incremented
+    // it is used so that items added after an iterator starts are
+    // not visited in the iterator
+    uint32_t _version;
+    // we keep track of how many running iterators there are so that
+    // we can clean up when the last iterator is done
+    uint32_t _iterator_count;
+    // we store the load factor here before the first iterator starts
+    // and then set the load factor to infinity so that rehashes of
+    // the set don't happen (from inserts that happen inside an iterator)
+    // once the last iterator finishes, the load factor is reset, and
+    // a rehash might happen
+    float _old_load_factor;
 
     // new NodeMap()
     static NAN_METHOD(Constructor);

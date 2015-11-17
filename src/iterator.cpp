@@ -39,10 +39,10 @@ void PairNodeIterator::init(Local<Object> target) {
 
 }
 
-Local<Object> PairNodeIterator::New(int type, MapType::const_iterator new_iter, MapType::const_iterator new_end) {
+Local<Object> PairNodeIterator::New(int type, NodeMap *map_obj) {
     Local<FunctionTemplate> constructor;
     Local<Object> obj;
-    PairNodeIterator *iter = new PairNodeIterator(new_iter, new_end);
+    PairNodeIterator *iter = new PairNodeIterator(map_obj);
 
     if (PairNodeIterator::KEY_TYPE & type) {
         if (PairNodeIterator::VALUE_TYPE & type) {
@@ -61,8 +61,16 @@ Local<Object> PairNodeIterator::New(int type, MapType::const_iterator new_iter, 
     return obj;
 }
 
-PairNodeIterator::PairNodeIterator(MapType::const_iterator new_iter, MapType::const_iterator new_end) : iter(new_iter), end(new_end) {}
+PairNodeIterator::PairNodeIterator(NodeMap *map_obj) {
+    this->_map_obj = map_obj;
+    this->_version = map_obj->StartIterator();
+    this->_iter = map_obj->GetBegin();
+    this->_end = map_obj->GetEnd();
+}
 
+PairNodeIterator::~PairNodeIterator() {
+    this->_map_obj->StopIterator();
+}
 
 // iterator.done : boolean
 NAN_GETTER(PairNodeIterator::GetDone) {
@@ -70,7 +78,12 @@ NAN_GETTER(PairNodeIterator::GetDone) {
 
     PairNodeIterator *obj = Nan::ObjectWrap::Unwrap<PairNodeIterator>(info.This());
 
-    if (obj->iter == obj->end) {
+    while (obj->_iter != obj->_end &&
+           (obj->_iter->IsDeleted() || !obj->_iter->IsValid(obj->_version))) {
+        obj->_iter++;
+    }
+
+    if (obj->_iter == obj->_end) {
         info.GetReturnValue().Set(Nan::True());
         return;
     }
@@ -85,12 +98,17 @@ NAN_GETTER(PairNodeIterator::GetKey) {
 
     PairNodeIterator *obj = ObjectWrap::Unwrap<PairNodeIterator>(info.This());
 
-    if (obj->iter == obj->end) {
+    while (obj->_iter != obj->_end &&
+           (obj->_iter->IsDeleted() || !obj->_iter->IsValid(obj->_version))) {
+        obj->_iter++;
+    }
+
+    if (obj->_iter == obj->_end) {
         info.GetReturnValue().Set(Nan::Undefined());
         return;
     }
 
-    info.GetReturnValue().Set(Local<Value>::New(Isolate::GetCurrent(), *obj->iter->first));
+    info.GetReturnValue().Set(obj->_iter->GetLocalKey());
     return;
 }
 
@@ -100,12 +118,17 @@ NAN_GETTER(PairNodeIterator::GetValue) {
 
     PairNodeIterator *obj = ObjectWrap::Unwrap<PairNodeIterator>(info.This());
 
-    if (obj->iter == obj->end) {
+    while (obj->_iter != obj->_end &&
+           (obj->_iter->IsDeleted() || !obj->_iter->IsValid(obj->_version))) {
+        obj->_iter++;
+    }
+
+    if (obj->_iter == obj->_end) {
         info.GetReturnValue().Set(Nan::Undefined());
         return;
     }
 
-    info.GetReturnValue().Set(Local<Value>::New(Isolate::GetCurrent(), *obj->iter->second));
+    info.GetReturnValue().Set(obj->_iter->GetLocalValue());
     return;
 }
 
@@ -115,12 +138,12 @@ NAN_METHOD(PairNodeIterator::Next) {
 
     PairNodeIterator *obj = ObjectWrap::Unwrap<PairNodeIterator >(info.This());
 
-    if (obj->iter == obj->end) {
+    if (obj->_iter == obj->_end) {
         info.GetReturnValue().Set(info.This());
         return;
     }
 
-    obj->iter++;
+    obj->_iter++;
     info.GetReturnValue().Set(info.This());
     return;
 }

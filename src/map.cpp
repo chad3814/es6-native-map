@@ -28,19 +28,60 @@ void NodeMap::init(Local<Object> target) {
     PairNodeIterator::init(target);
 }
 
-NodeMap::NodeMap() {}
+NodeMap::NodeMap() {
+    this->_version = 0;
+    this->_iterator_count = 0;
+}
 
 NodeMap::~NodeMap() {
-    for(MapType::const_iterator itr = this->map.begin(); itr != this->map.end(); ) {
-        itr->first->Reset();
-        itr->second->Reset();
-
-        delete itr->first;
-        delete itr->second;
-
-        itr = this->map.erase(itr);
+    for(SetType::const_iterator itr = this->_set.begin(); itr != this->_set.end(); ) {
+        itr = this->_set.erase(itr);
     }
 }
+
+uint32_t NodeMap::StartIterator() {
+    uint32_t version = this->_version;
+    this->_version++;
+    if (this->_iterator_count == 0) {
+        // if this is the first iterator, set the max load facto to infinity
+        // so that a rehash doesn't happen while iterating
+        this->_old_load_factor = this->_set.max_load_factor();
+        this->_set.max_load_factor(std::numeric_limits<float>::infinity());
+    }
+    this->_iterator_count++;
+
+    // return the latest version that should be valid for this iterator
+    return version;
+}
+
+void NodeMap::StopIterator() {
+    this->_iterator_count--;
+    if (this->_iterator_count != 0) {
+        return;
+    }
+    // that was the last iterator running, so now go through the whole set
+    // and actually delete anything marked for deletion
+    for(SetType::const_iterator itr = this->_set.begin(); itr != this->_set.end(); ) {
+        if (itr->IsDeleted()) {
+            itr = this->_set.erase(itr);
+        } else {
+            itr++;
+        }
+    }
+    // since it was the last iterator, reset the max load factor back
+    // to what it was before the first iterator, this might cause a
+    // rehash to happen
+    this->_set.max_load_factor(this->_old_load_factor);
+}
+
+SetType::const_iterator NodeMap::GetBegin() {
+    return this->_set.begin();
+}
+
+SetType::const_iterator NodeMap::GetEnd() {
+    return this->_set.end();
+}
+
 
 NAN_METHOD(NodeMap::Constructor) {
     Nan::HandleScope scope;
@@ -53,6 +94,8 @@ NAN_METHOD(NodeMap::Constructor) {
     Local<String> value = Nan::New("value").ToLocalChecked();
     Local<Object> iter;
     Local<Value> func_args[2];
+    Local<Function> setter;
+    Local<Function> next_func;
 
     obj->Wrap(info.This());
     info.GetReturnValue().Set(info.This());
@@ -66,17 +109,17 @@ NAN_METHOD(NodeMap::Constructor) {
         return;
 
     }
-    Nan::Callback setter(Nan::Get(info.This(), set).ToLocalChecked().As<Function>());
+    setter = Nan::Get(info.This(), set).ToLocalChecked().As<Function>();
     if (info[0]->IsObject()) {
         iter = Nan::To<Object>(info[0]).ToLocalChecked();
         if (iter->Has(next) && iter->Get(next)->IsFunction() && iter->Has(key) && iter->Has(value) && iter->Has(done)) {
-            Nan::Callback next_func(Nan::Get(iter, next).ToLocalChecked().As<Function>());
+            next_func = Nan::Get(iter, next).ToLocalChecked().As<Function>();
             // a value iterator
             while(!Nan::Get(iter, done).ToLocalChecked()->BooleanValue()) {
                 func_args[0] = Nan::Get(iter, key).ToLocalChecked();
                 func_args[1] = Nan::Get(iter, value).ToLocalChecked();
-                setter.Call(info.This(), 2, func_args);
-                next_func.Call(iter, 0, 0);
+                setter->Call(info.This(), 2, func_args);
+                next_func->Call(iter, 0, 0);
             }
         }
     }
@@ -92,19 +135,25 @@ NAN_METHOD(NodeMap::Get) {
     }
 
     NodeMap *obj = Nan::ObjectWrap::Unwrap<NodeMap>(info.This());
-    CopyablePersistent *persistent = new Nan::Persistent<Value, Nan::CopyablePersistentTraits<v8::Value> >(info[0]);
+    VersionedPersistent persistent(obj->_version, info[0]);
 
-    MapType::const_iterator itr = obj->map.find(persistent);
-    persistent->Reset();
-    delete persistent;
+    obj->StartIterator();
+    SetType::const_iterator itr = obj->_set.find(persistent);
+    SetType::const_iterator end = obj->_set.end();
 
-    if(itr == obj->map.end()) {
+    while(itr != end && itr->IsDeleted()) {
+        itr++;
+    }
+
+    if(itr == end || !info[0]->StrictEquals(itr->GetLocalKey())) {
+        //do nothing and return undefined
+        obj->StopIterator();
         info.GetReturnValue().Set(Nan::Undefined());
         return;
     }
 
-    Local<Value> ret = Local<Value>::New(Isolate::GetCurrent(), *itr->second);
-    info.GetReturnValue().Set(ret);
+    info.GetReturnValue().Set(itr->GetLocalValue());
+    obj->StopIterator();
     return;
 }
 
@@ -117,13 +166,19 @@ NAN_METHOD(NodeMap::Has) {
     }
 
     NodeMap *obj = Nan::ObjectWrap::Unwrap<NodeMap>(info.This());
-    CopyablePersistent *persistent = new Nan::Persistent<Value, Nan::CopyablePersistentTraits<v8::Value> >(info[0]);
+    VersionedPersistent persistent(obj->_version, info[0]);
 
-    MapType::const_iterator itr = obj->map.find(persistent);
-    persistent->Reset();
-    delete persistent;
+    obj->StartIterator();
+    SetType::const_iterator itr = obj->_set.find(persistent);
+    SetType::const_iterator end = obj->_set.end();
 
-    if(itr == obj->map.end()) {
+    while(itr != end && itr->IsDeleted()) {
+        itr++;
+    }
+
+    if(itr == end || !info[0]->StrictEquals(itr->GetLocalKey())) {
+        //do nothing and return false
+        obj->StopIterator();
         info.GetReturnValue().Set(Nan::False());
         return;
     }
@@ -141,23 +196,22 @@ NAN_METHOD(NodeMap::Set) {
     }
 
     NodeMap *obj = Nan::ObjectWrap::Unwrap<NodeMap>(info.This());
-    CopyablePersistent *pkey = new CopyablePersistent(info[0]);
-    CopyablePersistent *pvalue = new CopyablePersistent(info[1]);
+    VersionedPersistent *persistent = new VersionedPersistent(obj->_version, info[0], info[1]);
 
-    MapType::const_iterator itr = obj->map.find(pkey);
+    obj->StartIterator();
+    SetType::const_iterator itr = obj->_set.find(*persistent);
+    SetType::const_iterator end = obj->_set.end();
 
-    //overwriting an existing value
-    if(itr != obj->map.end()) {
-        itr->first->Reset();
-        itr->second->Reset();
-
-        delete itr->first;
-        delete itr->second;
-
-        obj->map.erase(itr);
+    while(itr != end && itr->IsDeleted()) {
+        itr++;
     }
 
-    obj->map.insert(std::pair<CopyablePersistent *, CopyablePersistent *>(pkey, pvalue));
+    if(itr != end && info[0]->StrictEquals(itr->GetLocalKey())) {
+        itr->Delete();
+    }
+    obj->StopIterator();
+
+    obj->_set.insert(*persistent);
 
     //Return this
     info.GetReturnValue().Set(info.This());
@@ -169,7 +223,7 @@ NAN_METHOD(NodeMap::Entries) {
 
     NodeMap *obj = Nan::ObjectWrap::Unwrap<NodeMap>(info.This());
 
-    Local<Object> iter = PairNodeIterator::New(PairNodeIterator::KEY_TYPE | PairNodeIterator::VALUE_TYPE, obj->map.begin(), obj->map.end());
+    Local<Object> iter = PairNodeIterator::New(PairNodeIterator::KEY_TYPE | PairNodeIterator::VALUE_TYPE, obj);
 
     info.GetReturnValue().Set(iter);
     return;
@@ -180,7 +234,7 @@ NAN_METHOD(NodeMap::Keys) {
 
     NodeMap *obj = Nan::ObjectWrap::Unwrap<NodeMap>(info.This());
 
-    Local<Object> iter = PairNodeIterator::New(PairNodeIterator::KEY_TYPE, obj->map.begin(), obj->map.end());
+    Local<Object> iter = PairNodeIterator::New(PairNodeIterator::KEY_TYPE, obj);
 
     info.GetReturnValue().Set(iter);
     return;
@@ -191,7 +245,7 @@ NAN_METHOD(NodeMap::Values) {
 
     NodeMap *obj = Nan::ObjectWrap::Unwrap<NodeMap>(info.This());
 
-    Local<Object> iter = PairNodeIterator::New(PairNodeIterator::VALUE_TYPE, obj->map.begin(), obj->map.end());
+    Local<Object> iter = PairNodeIterator::New(PairNodeIterator::VALUE_TYPE, obj);
 
     info.GetReturnValue().Set(iter);
     return;
@@ -207,25 +261,25 @@ NAN_METHOD(NodeMap::Delete) {
     }
 
     NodeMap *obj = Nan::ObjectWrap::Unwrap<NodeMap>(info.This());
-    CopyablePersistent *persistent = new CopyablePersistent(info[0]);
+    VersionedPersistent persistent(obj->_version, info[0]);
 
-    MapType::const_iterator itr = obj->map.find(persistent);
-    persistent->Reset();
-    delete persistent;
+    obj->StartIterator();
+    SetType::const_iterator itr = obj->_set.find(persistent);
+    SetType::const_iterator end = obj->_set.end();
 
-    if(itr == obj->map.end()) {
+    while(itr != end && itr->IsDeleted()) {
+        itr++;
+    }
+
+    if (itr == end || !info[0]->StrictEquals(itr->GetLocalKey())) {
         //do nothing and return false
+        obj->StopIterator();
         info.GetReturnValue().Set(Nan::False());
         return;
     }
 
-    itr->first->Reset();
-    itr->second->Reset();
-
-    delete itr->first;
-    delete itr->second;
-
-    obj->map.erase(itr);
+    itr->Delete();
+    obj->StopIterator();
 
     info.GetReturnValue().Set(Nan::True());
     return;
@@ -236,15 +290,11 @@ NAN_METHOD(NodeMap::Clear) {
 
     NodeMap *obj = Nan::ObjectWrap::Unwrap<NodeMap>(info.This());
 
-    for(MapType::const_iterator itr = obj->map.begin(); itr != obj->map.end(); ) {
-        itr->first->Reset();
-        itr->second->Reset();
-
-        delete itr->first;
-        delete itr->second;
-
-        itr = obj->map.erase(itr);
+    obj->StartIterator();
+    for(SetType::const_iterator itr = obj->_set.begin(); itr != obj->_set.end(); ) {
+        itr->Delete();
     }
+    obj->StopIterator();
 
     info.GetReturnValue().Set(Nan::Undefined());
     return;
@@ -252,7 +302,20 @@ NAN_METHOD(NodeMap::Clear) {
 
 NAN_GETTER(NodeMap::Size) {
     NodeMap *obj = Nan::ObjectWrap::Unwrap<NodeMap>(info.This());
-    uint32_t size = obj->map.size();
+    uint32_t size = 0;
+    if (obj->_iterator_count == 0) {
+        size = obj->_set.size();
+        info.GetReturnValue().Set(Nan::New<Integer>(size));
+        return;
+    }
+
+    SetType::const_iterator itr = obj->_set.begin();
+    SetType::const_iterator end = obj->_set.end();
+    for (; itr != end; itr++) {
+        if (itr->IsValid(obj->_version)) {
+            size += 1;
+        }
+    }
 
     info.GetReturnValue().Set(Nan::New<Integer>(size));
     return;
@@ -280,14 +343,19 @@ NAN_METHOD(NodeMap::ForEach) {
     Local<Value> argv[argc];
     argv[2] = info.This();
 
-    MapType::const_iterator itr = obj->map.begin();
+    uint32_t version = obj->StartIterator();
+    SetType::const_iterator itr = obj->_set.begin();
+    SetType::const_iterator end = obj->_set.end();
 
-    while (itr != obj->map.end()) {
-        argv[0] = Local<Value>::New(Isolate::GetCurrent(), *itr->second);
-        argv[1] = Local<Value>::New(Isolate::GetCurrent(), *itr->first);
-        cb->Call(ctx, argc, argv);
+    while (itr != end) {
+        if (itr->IsValid(version)) {
+            argv[0] = itr->GetLocalValue();
+            argv[1] = itr->GetLocalKey();
+            cb->Call(ctx, argc, argv);
+        }
         itr++;
     }
+    obj->StopIterator();
 
     info.GetReturnValue().Set(Nan::Undefined());
     return;

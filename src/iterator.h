@@ -10,7 +10,7 @@
 class PairNodeIterator : public Nan::ObjectWrap {
 public:
     static void init(v8::Local<v8::Object> target);
-    static v8::Local<v8::Object> New(int type, MapType::const_iterator new_iter, MapType::const_iterator new_end);
+    static v8::Local<v8::Object> New(int type, NodeMap *obj);
 
     const static int KEY_TYPE = 1;
     const static int VALUE_TYPE = 1 << 1;
@@ -20,11 +20,13 @@ private:
     static Nan::Persistent<v8::FunctionTemplate> v_constructor;
     static Nan::Persistent<v8::FunctionTemplate> kv_constructor;
 
-    PairNodeIterator(MapType::const_iterator new_iter, MapType::const_iterator new_end);
-    //~PairNodeIterator();
+    PairNodeIterator(NodeMap *map_obj);
+    ~PairNodeIterator();
 
-    MapType::const_iterator iter;
-    MapType::const_iterator end;
+    uint32_t _version;
+    SetType::const_iterator _iter;
+    SetType::const_iterator _end;
+    NodeMap *_map_obj;
 
     // iterator.done : boolean
     static NAN_GETTER(GetDone);

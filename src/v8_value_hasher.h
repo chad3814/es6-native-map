@@ -11,14 +11,70 @@
 #include <unordered_set>
 #define hash std::hash
 #endif
+#include <nan.h>
 
-typedef Nan::Persistent<v8::Value, Nan::CopyablePersistentTraits<v8::Value> > CopyablePersistent;
+class VersionedPersistent {
+public:
+    VersionedPersistent(uint32_t version, v8::Local<v8::Value> key) : _version(version), _is_deleted(false) {
+        _persistent_key.Reset(key);
+    }
+
+VersionedPersistent(uint32_t version, v8::Local<v8::Value> key, v8::Local<v8::Value> value) : _version(version), _is_deleted(false) {
+        _persistent_key.Reset(key);
+        _persistent_value.Reset(value);
+    }
+
+    VersionedPersistent(const VersionedPersistent &copy) {
+        Nan::HandleScope scope;
+        _is_deleted = copy._is_deleted;
+        _version = copy._version;
+        _persistent_key.Reset(copy.GetLocalKey());
+        _persistent_value.Reset(copy.GetLocalValue());
+    }
+
+    ~VersionedPersistent() {
+        this->Delete();
+    }
+
+    void Delete() const {
+        if (_is_deleted) {
+            return;
+        }
+
+        _is_deleted = true;
+        _persistent_key.Reset();
+        _persistent_value.Reset();
+    }
+
+    bool IsDeleted() const {
+        return _is_deleted;
+    }
+
+    bool IsValid(uint32_t version) const {
+        return !_is_deleted && (_version <= version);
+    }
+
+    v8::Local<v8::Value> GetLocalKey() const {
+        return v8::Local<v8::Value>::New(v8::Isolate::GetCurrent(), this->_persistent_key);
+    }
+
+    v8::Local<v8::Value> GetLocalValue() const {
+        return v8::Local<v8::Value>::New(v8::Isolate::GetCurrent(), this->_persistent_value);
+    }
+
+private:
+    mutable uint32_t _version;
+    mutable bool _is_deleted;
+    mutable Nan::Persistent<v8::Value> _persistent_key;
+    mutable Nan::Persistent<v8::Value> _persistent_value;
+};
+
 
 struct v8_value_hash
 {
-    size_t operator()(CopyablePersistent *k) const {
+    size_t operator()(VersionedPersistent k) const {
         Nan::HandleScope scope;
-        v8::Local<v8::Value> key = v8::Local<v8::Value>::New(v8::Isolate::GetCurrent(), *k);
+        v8::Local<v8::Value> key = k.GetLocalKey();
 
         std::string s;
         if (key->IsString() || key->IsBoolean() || key->IsNumber()) {
@@ -30,17 +86,17 @@ struct v8_value_hash
 
 struct v8_value_equal_to
 {
-    bool operator()(CopyablePersistent *pa, CopyablePersistent *pb) const {
+    bool operator()(VersionedPersistent pa, VersionedPersistent pb) const {
         Nan::HandleScope scope;
 
-        if (*pa == *pb) {
-            return true;
+        if (pa.IsDeleted() || pb.IsDeleted()) {
+            return false;
         }
 
-        v8::Local<v8::Value> a = v8::Local<v8::Value>::New(v8::Isolate::GetCurrent(), *pa);
-        v8::Local<v8::Value> b = v8::Local<v8::Value>::New(v8::Isolate::GetCurrent(), *pb);
+        v8::Local<v8::Value> a = pa.GetLocalKey();
+        v8::Local<v8::Value> b = pb.GetLocalKey();
 
-        if (a->Equals(b)) {          /* same as JS == */
+        if (a->StrictEquals(b)) {          /* same as JS === */
             return true;
         }
 
