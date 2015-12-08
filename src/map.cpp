@@ -168,7 +168,6 @@ NAN_METHOD(NodeMap::Has) {
     NodeMap *obj = Nan::ObjectWrap::Unwrap<NodeMap>(info.This());
     VersionedPersistentPair persistent(obj->_version, info[0]);
 
-    obj->StartIterator();
     MapType::const_iterator itr = obj->_set.find(persistent);
     MapType::const_iterator end = obj->_set.end();
 
@@ -178,7 +177,6 @@ NAN_METHOD(NodeMap::Has) {
 
     if(itr == end || !info[0]->StrictEquals(itr->GetLocalKey())) {
         //do nothing and return false
-        obj->StopIterator();
         info.GetReturnValue().Set(Nan::False());
         return;
     }
