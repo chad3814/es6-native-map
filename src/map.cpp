@@ -82,7 +82,6 @@ MapType::const_iterator NodeMap::GetEnd() {
     return this->_set.end();
 }
 
-
 NAN_METHOD(NodeMap::Constructor) {
     Nan::HandleScope scope;
     NodeMap *obj = new NodeMap();
@@ -137,7 +136,6 @@ NAN_METHOD(NodeMap::Get) {
     NodeMap *obj = Nan::ObjectWrap::Unwrap<NodeMap>(info.This());
     VersionedPersistentPair persistent(obj->_version, info[0]);
 
-    obj->StartIterator();
     MapType::const_iterator itr = obj->_set.find(persistent);
     MapType::const_iterator end = obj->_set.end();
 
@@ -147,13 +145,11 @@ NAN_METHOD(NodeMap::Get) {
 
     if(itr == end || !info[0]->StrictEquals(itr->GetLocalKey())) {
         //do nothing and return undefined
-        obj->StopIterator();
         info.GetReturnValue().Set(Nan::Undefined());
         return;
     }
 
     info.GetReturnValue().Set(itr->GetLocalValue());
-    obj->StopIterator();
     return;
 }
 
@@ -196,7 +192,6 @@ NAN_METHOD(NodeMap::Set) {
     NodeMap *obj = Nan::ObjectWrap::Unwrap<NodeMap>(info.This());
     VersionedPersistentPair *persistent = new VersionedPersistentPair(obj->_version, info[0], info[1]);
 
-    obj->StartIterator();
     MapType::const_iterator itr = obj->_set.find(*persistent);
     MapType::const_iterator end = obj->_set.end();
 
@@ -205,11 +200,11 @@ NAN_METHOD(NodeMap::Set) {
     }
 
     if(itr != end && info[0]->StrictEquals(itr->GetLocalKey())) {
-        itr->Delete();
+        itr->ReplaceValue(obj->_version, info[1]);
+        delete persistent;
+    } else {
+        obj->_set.insert(*persistent);
     }
-    obj->StopIterator();
-
-    obj->_set.insert(*persistent);
 
     //Return this
     info.GetReturnValue().Set(info.This());
@@ -260,8 +255,18 @@ NAN_METHOD(NodeMap::Delete) {
 
     NodeMap *obj = Nan::ObjectWrap::Unwrap<NodeMap>(info.This());
     VersionedPersistentPair persistent(obj->_version, info[0]);
+    bool using_iterator = (obj->_iterator_count != 0);
+    bool ret;
 
-    obj->StartIterator();
+    if (using_iterator) {
+        obj->StartIterator();
+    }
+
+    if (using_iterator)
+        std::cout << "using an iterator\n";
+    else
+        std::cout << "NOT using an iterator\n";
+
     MapType::const_iterator itr = obj->_set.find(persistent);
     MapType::const_iterator end = obj->_set.end();
 
@@ -269,17 +274,28 @@ NAN_METHOD(NodeMap::Delete) {
         itr++;
     }
 
-    if (itr == end || !info[0]->StrictEquals(itr->GetLocalKey())) {
-        //do nothing and return false
+    ret = (itr != end && info[0]->StrictEquals(itr->GetLocalKey()));
+
+    if (using_iterator) {
+        if (ret) {
+            std::cout << "using an iterator and deleting\n";
+            itr->Delete();
+        }
         obj->StopIterator();
-        info.GetReturnValue().Set(Nan::False());
-        return;
+    } else {
+        if (ret) {
+            std::cout << "NOT using an iterator and deleting\n";
+            obj->_set.erase(itr);
+        }
     }
 
-    itr->Delete();
-    obj->StopIterator();
+    std::cout << "delete done\n";
 
-    info.GetReturnValue().Set(Nan::True());
+    if (ret) {
+        info.GetReturnValue().Set(Nan::True());
+    } else {
+        info.GetReturnValue().Set(Nan::False());
+    }
     return;
 }
 
@@ -287,12 +303,24 @@ NAN_METHOD(NodeMap::Clear) {
     Nan::HandleScope scope;
 
     NodeMap *obj = Nan::ObjectWrap::Unwrap<NodeMap>(info.This());
+    bool using_iterator = (obj->_iterator_count != 0);
 
-    obj->StartIterator();
-    for(MapType::const_iterator itr = obj->_set.begin(); itr != obj->_set.end(); ) {
-        itr->Delete();
+    if (using_iterator) {
+        obj->StartIterator();
     }
-    obj->StopIterator();
+
+    for(MapType::const_iterator itr = obj->_set.begin(); itr != obj->_set.end(); ) {
+        if (using_iterator) {
+            itr->Delete();
+            itr++;
+        } else {
+            itr = obj->_set.erase(itr);
+        }
+    }
+
+    if (using_iterator) {
+        obj->StopIterator();
+    }
 
     info.GetReturnValue().Set(Nan::Undefined());
     return;

@@ -46,6 +46,12 @@ public:
         _persistent_value.Reset();
     }
 
+    void ReplaceValue(uint32_t version, v8::Local<v8::Value> value) const {
+        _version = version;
+        _persistent_value.Reset(value);
+        _is_deleted = false;
+    }
+
     bool IsDeleted() const {
         return _is_deleted;
     }
