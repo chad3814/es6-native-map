@@ -190,9 +190,9 @@ NAN_METHOD(NodeMap::Set) {
     }
 
     NodeMap *obj = Nan::ObjectWrap::Unwrap<NodeMap>(info.This());
-    VersionedPersistentPair *persistent = new VersionedPersistentPair(obj->_version, info[0], info[1]);
+    VersionedPersistentPair persistent(obj->_version, info[0], info[1]);
 
-    MapType::const_iterator itr = obj->_set.find(*persistent);
+    MapType::const_iterator itr = obj->_set.find(persistent);
     MapType::const_iterator end = obj->_set.end();
 
     while(itr != end && itr->IsDeleted()) {
@@ -201,9 +201,8 @@ NAN_METHOD(NodeMap::Set) {
 
     if(itr != end && info[0]->StrictEquals(itr->GetLocalKey())) {
         itr->ReplaceValue(obj->_version, info[1]);
-        delete persistent;
     } else {
-        obj->_set.insert(*persistent);
+        obj->_set.insert(persistent);
     }
 
     //Return this

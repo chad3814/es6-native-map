@@ -43,7 +43,12 @@ public:
 
         _is_deleted = true;
         _persistent_key.Reset();
-        _persistent_value.Reset();
+        _persistent_key.Empty();
+
+        if (!_persistent_value.IsEmpty()) {
+            _persistent_value.Reset();
+            _persistent_value.Empty();
+        }
     }
 
     void ReplaceValue(uint32_t version, v8::Local<v8::Value> value) const {
