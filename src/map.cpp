@@ -262,11 +262,6 @@ NAN_METHOD(NodeMap::Delete) {
         obj->StartIterator();
     }
 
-    if (using_iterator)
-        std::cout << "using an iterator\n";
-    else
-        std::cout << "NOT using an iterator\n";
-
     MapType::const_iterator itr = obj->_set.find(persistent);
     MapType::const_iterator end = obj->_set.end();
 
@@ -278,18 +273,14 @@ NAN_METHOD(NodeMap::Delete) {
 
     if (using_iterator) {
         if (ret) {
-            std::cout << "using an iterator and deleting\n";
             itr->Delete();
         }
         obj->StopIterator();
     } else {
         if (ret) {
-            std::cout << "NOT using an iterator and deleting\n";
             obj->_set.erase(itr);
         }
     }
-
-    std::cout << "delete done\n";
 
     if (ret) {
         info.GetReturnValue().Set(Nan::True());
