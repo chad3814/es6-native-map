@@ -9,6 +9,15 @@ void NodeMap::init(Local<Object> target) {
 
     Local<FunctionTemplate> constructor = Nan::New<FunctionTemplate>(Constructor);
 
+    // got to do the Symbol.iterator function by hand, no Nan support
+    Local<Symbol> symbol_iterator = Symbol::GetIterator(Isolate::GetCurrent());
+    Local<FunctionTemplate> entries_templt = Nan::New<FunctionTemplate>(
+        Entries
+        , Local<Value>()
+        , Nan::New<Signature>(constructor));
+    constructor->PrototypeTemplate()->Set(symbol_iterator, entries_templt);
+    entries_templt->SetClassName(Nan::New("Symbol(Symbol.iterator)").ToLocalChecked());
+
     constructor->SetClassName(Nan::New("NodeMap").ToLocalChecked());
     constructor->InstanceTemplate()->SetInternalFieldCount(1);
 
@@ -89,9 +98,12 @@ NAN_METHOD(NodeMap::Constructor) {
     Local<String> set = Nan::New("set").ToLocalChecked();
     Local<String> next = Nan::New("next").ToLocalChecked();
     Local<String> done = Nan::New("done").ToLocalChecked();
-    Local<String> key = Nan::New("key").ToLocalChecked();
     Local<String> value = Nan::New("value").ToLocalChecked();
+    Local<Symbol> symbol_iterator = Symbol::GetIterator(Isolate::GetCurrent());
+    Local<Object> info0;
     Local<Object> iter;
+    Local<Object> iter_obj;
+    Local<Array> value_arr;
     Local<Value> func_args[2];
     Local<Function> setter;
     Local<Function> next_func;
@@ -109,18 +121,29 @@ NAN_METHOD(NodeMap::Constructor) {
 
     }
     setter = Nan::Get(info.This(), set).ToLocalChecked().As<Function>();
-    if (info[0]->IsObject()) {
-        iter = Nan::To<Object>(info[0]).ToLocalChecked();
-        if (iter->Has(next) && iter->Get(next)->IsFunction() && iter->Has(key) && iter->Has(value) && iter->Has(done)) {
-            next_func = Nan::Get(iter, next).ToLocalChecked().As<Function>();
-            // a value iterator
-            while(!Nan::Get(iter, done).ToLocalChecked()->BooleanValue()) {
-                func_args[0] = Nan::Get(iter, key).ToLocalChecked();
-                func_args[1] = Nan::Get(iter, value).ToLocalChecked();
-                setter->Call(info.This(), 2, func_args);
-                next_func->Call(iter, 0, 0);
+    if (!info[0]->IsObject()) {
+        Nan::ThrowTypeError("Invalid argument");
+        return;
+    }
+    info0 = Nan::To<Object>(info[0]).ToLocalChecked();
+    if (!info0->Has(symbol_iterator)) {
+        Nan::ThrowTypeError("Argument not iterable");
+        return;
+    }
+
+    iter = Nan::To<Object>(Nan::Call(Nan::Get(info0, symbol_iterator).ToLocalChecked().As<Function>(), info0, 0, 0).ToLocalChecked()).ToLocalChecked();
+    next_func = Nan::Get(iter, next).ToLocalChecked().As<Function>();
+    iter_obj = Nan::Call(next_func, iter, 0, 0).ToLocalChecked()->ToObject();
+    while(!Nan::Get(iter_obj, done).ToLocalChecked()->BooleanValue()) {
+        if (Nan::Get(iter_obj, value).ToLocalChecked()->IsArray()) {
+            value_arr = Nan::Get(iter_obj, value).ToLocalChecked().As<Array>();
+            if (value_arr->Length() >= 2) {
+                func_args[0] = Nan::Get(value_arr, 0).ToLocalChecked();
+                func_args[1] = Nan::Get(value_arr, 1).ToLocalChecked();
+                Nan::Call(setter, info.This(), 2, func_args);
             }
         }
+        iter_obj = Nan::Call(next_func, iter, 0, 0).ToLocalChecked()->ToObject();
     }
     return;
 }

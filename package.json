@@ -8,7 +8,7 @@
     "es6",
     "es6 map"
   ],
-  "version": "3.5.1",
+  "version": "4.0.0",
   "license": "MIT",
   "homepage": "https://github.com/chad3814/es6-native-map",
   "maintainers": [
@@ -35,6 +35,6 @@
     }
   ],
   "dependencies": {
-    "nan": "^2.0.9"
+    "nan": "^2.3.3"
   }
 }

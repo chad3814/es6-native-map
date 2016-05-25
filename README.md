@@ -1,9 +1,11 @@
 # es6-native-map
 ==============
 
-Sometimes you need to store so much data in memory that V8 can get a bit clogged up. This Node.js module provides an interface to a native hashmap data structure that exists outside of V8's memory constraints, with the ES6 Map api.
+This Node.js module provides an interface to a native hashmap data structure with the ES6 Map api. This is significantly faster than the built-in Map, but loses the order of key/value inserts.
 
 As of 2.0.0, es6-native-map requires node.js 0.12 or later. If you are running node.js 0.10, stick with the 1.x.x line.
+
+As of 4.0.0, es6-native-map actually implements @@iterator correctly, so you can use all the iterable functions and operators.
 
 To install, simply:
 
@@ -20,9 +22,10 @@ To use:
     console.log('There are', map.size, 'item(s) in the map');
 
     iterator = map.entries();
-    while (!iterator.done) {
-        console.log(iterator.key, '=', iterator.value);
-        iterator.next();
+    item = iterator.next();
+    while (!item.done) {
+        console.log(item.value[0], '=', item.value[1]);
+        item = iterator.next();
     }
 
 See the official [ES6 Map documentation](http://people.mozilla.org/~jorendorff/es6-draft.html#sec-map-objects)
