@@ -3,18 +3,12 @@
 
 #include <string>
 #include <iostream>
-#ifdef __APPLE__
-#include <tr1/unordered_set>
-#define unordered_set std::tr1::unordered_set
-#else
 #include <unordered_set>
-#define unordered_set std::unordered_set
-#endif
 #include <node.h>
 #include <nan.h>
 #include "v8_value_hasher.h"
 
-typedef unordered_set<VersionedPersistentPair, v8_value_hash, v8_value_equal_to> MapType;
+typedef std::unordered_set<VersionedPersistentPair, v8_value_hash, v8_value_equal_to> MapType;
 
 class NodeMap : public Nan::ObjectWrap {
 public:

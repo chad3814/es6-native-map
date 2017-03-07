@@ -4,13 +4,7 @@
 #include <string>
 #include <iostream>
 #include <node.h>
-#ifdef __APPLE__
-#include <tr1/unordered_set>
-#define hash std::tr1::hash
-#else
 #include <unordered_set>
-#define hash std::hash
-#endif
 #include <nan.h>
 
 class VersionedPersistentPair {
@@ -89,9 +83,9 @@ struct v8_value_hash
 
         std::string s;
         if (key->IsString() || key->IsBoolean() || key->IsNumber()) {
-            return hash<std::string>()(*Nan::Utf8String(key));
+            return std::hash<std::string>()(*Nan::Utf8String(key));
         }
-        return hash<int>()(Nan::To<v8::Object>(key).ToLocalChecked()->GetIdentityHash());
+        return std::hash<int>()(Nan::To<v8::Object>(key).ToLocalChecked()->GetIdentityHash());
     }
 };
 
