@@ -41,14 +41,17 @@ var test = require('tape');
     assert.end();
   });
 
-  test('test has method', (assert) => {
+  test(`test ${mapType} has method`, (assert) => {
     let empty = new Map();
     assert.notOk(empty.has('anything') || empty.has(1) || empty.has(''), "empty map has no keys");
-    let m = new Map([[1, 2], [3, 4], [()=>{}, 6], [{}, 8]]);
+    let obj = {'some': 'object'};
+    let fun = (some) => { console.log('function'); };
+    let m = new Map([[1, 2], [3, 4], [()=>{}, 6], [{}, 8], [obj, 10], [fun, 12]]);
     assert.ok(m.has(1) && m.has(3), 'has returns true for existing keys');
     assert.notOk(m.has(2) || m.has(4), 'has returns false for existing values');
     assert.notOk(m.has(5) || m.has('missing'), 'has returns false for nonexistent keys');
-    assert.notOk(m.has({}) || m.has(() => {}), 'has returns false for nonidentical keys');
+    assert.notOk(m.has({}) || m.has(() => {}), 'has returns false for nonidentical object/function keys');
+    assert.ok(m.has(obj) && m.has(fun), 'has returns true for identical object/function keys');
     assert.end();
   });
 
@@ -59,6 +62,7 @@ var test = require('tape');
     assert.notOk(m.has(1), 'after deleting map no longer has key');
     assert.equal(m.size, startSize-1, 'deleting reduces size by 1');
     assert.notOk(m.delete(5), 'deleting a nonexistent key returns false');
+    assert.equal(m.size, startSize-1, 'deleting nonexistent key does not change size');
     assert.end();
   });
 
@@ -69,7 +73,7 @@ var test = require('tape');
     assert.equal(m.size, 0, 'after clearing map has size == 0');
     let empty = new Map();
     assert.doesNotThrow(() => {empty.clear()}, 'empty map can be cleared');
-    assert.equal(m.size, 0, 'after clearing map has size == 0');
+    assert.equal(empty.size, 0, 'after clearing map has size == 0');
     assert.end();
   });
 
