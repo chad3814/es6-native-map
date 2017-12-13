@@ -141,7 +141,13 @@ NAN_METHOD(NodeMap::Constructor) {
                 func_args[0] = Nan::Get(value_arr, 0).ToLocalChecked();
                 func_args[1] = Nan::Get(value_arr, 1).ToLocalChecked();
                 Nan::Call(setter, info.This(), 2, func_args);
+            } else {
+              Nan::ThrowTypeError("Iterator contains non-entry object");
+              return;
             }
+        } else {
+          Nan::ThrowTypeError("Iterator contains non-entry object");
+          return;
         }
         iter_obj = Nan::Call(next_func, iter, 0, 0).ToLocalChecked()->ToObject();
     }
