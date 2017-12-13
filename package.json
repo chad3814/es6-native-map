@@ -26,7 +26,8 @@
     "url": "https://github.com/chad3814/es6-native-map/issues"
   },
   "scripts": {
-    "install": "node-gyp configure build"
+    "install": "node-gyp configure build",
+    "test": "tape test/*.test.js | tap-spec"
   },
   "licenses": [
     {
@@ -36,5 +37,9 @@
   ],
   "dependencies": {
     "nan": "^2.3.3"
+  },
+  "devDependencies": {
+    "tap-spec": "^4.1.1",
+    "tape": "^4.8.0"
   }
 }
