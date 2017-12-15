@@ -22,11 +22,8 @@ const test = require('tape');
 
     assert.doesNotThrow(() => {myMap.set({}, 'value');}, 'can set object key to a value');
     assert.doesNotThrow(() => {myMap.set(()=>{}, 'value');}, 'can set function key to a value');
-    assert.doesNotThrow(() => {myMap.set(null, 'value');}, 'can set null key to a value');
 
-    assert.doesNotThrow(() => {myMap.set(1);}, 'can call set with only 1 argument');
-    assert.ok(myMap.has(1) && myMap.get(1) === undefined, 'set with only 1 argument leaves value as undefined');
-    assert.doesNotThrow(() => {myMap.set(2,3,4);}, 'can call set with more than 2 arguments');
+    assert.doesNotThrow(() => {myMap.set(2,3,4);}, 'can call set with more than 2 non-null arguments');
     assert.ok(myMap.has(2) && myMap.get(2) === 3, 'set ignores arguments after 2nd');
 
     assert.end();
