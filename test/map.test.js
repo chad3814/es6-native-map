@@ -176,4 +176,23 @@ const test = require('tape');
     assert.end();
   });
 
+  test(`test ${mapType} readme code sample`, (assert) => {
+    const map = new Map();
+    assert.doesNotThrow(() => {map.set('key', {value: 'value'});}, 'can set a string key to an object value');
+    assert.doesNotThrow(() => {map.set('something', 'else');}, 'can set a string key to a string value');
+
+    assert.equal(map.size, 2, 'after 2 set calls there are 2 items in the map');
+
+    let iterator = map.entries();
+    let item;
+    assert.doesNotThrow(() => {item = iterator.next();}, 'entries returns an iterator with a next method');
+    assert.notOk(item.done, "iterator.next() initially returns an object with a done value of false");
+    while (!item.done) {
+        assert.equal(item.value.length, 2, 'the iterator returns objects with a 2-item array as the value')
+        item = iterator.next();
+    }
+    assert.equal(item.value, undefined, 'when iteration has finished the iterator returns {done: true, value undefined}');
+    assert.end();
+  });
+
 });
